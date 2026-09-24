@@ -51,6 +51,42 @@ class Model(Estimator, ABC):
             The predicted target values.
         """
 
+    def score(self, dataset):
+        """
+        Compute the error/performance metric between the model's predictions and the true values.
+        The model needs to be fitted before calling this method.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            The dataset to score the model on.
+
+        Returns
+        -------
+        score: float
+            The error/performance metric of the model.
+        """
+        if not self.is_fitted:
+            raise ValueError('Model needs to be fitted before calling score()')
+        return self._score(dataset)
+
+    @abstractmethod
+    def _score(self, dataset):
+        """
+        Compute the error/performance metric between the model's predictions and the true values.
+        Abstract method that needs to be implemented by all subclasses.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            The dataset to score the model on.
+
+        Returns
+        -------
+        score: float
+            The error/performance metric of the model.
+        """
+
     def fit_predict(self, dataset):
         """
         Fit the model to the dataset and predict the target values.
