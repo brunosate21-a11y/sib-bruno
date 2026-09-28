@@ -30,7 +30,8 @@ class Model(Estimator, ABC):
         predictions: np.ndarray
             The predicted target values.
         """
-        if not self.is_fitted:
+        #is_fitted is a method, so it must be called with "()". whithout "()", self.is_fitted is object so it would allways be truthy. Because of that it would never raise an error
+        if not self.is_fitted():
             raise ValueError('Model needs to be fitted before calling predict()')
         return self._predict(dataset)
 
@@ -66,7 +67,8 @@ class Model(Estimator, ABC):
         score: float
             The error/performance metric of the model.
         """
-        if not self.is_fitted:
+        #Same fix
+        if not self.is_fitted():
             raise ValueError('Model needs to be fitted before calling score()')
         return self._score(dataset)
 
