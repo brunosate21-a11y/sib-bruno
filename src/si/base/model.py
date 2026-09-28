@@ -67,7 +67,7 @@ class Model(Estimator, ABC):
         score: float
             The error/performance metric of the model.
         """
-        #Same fix
+        #Same fix de cima
         if not self.is_fitted():
             raise ValueError('Model needs to be fitted before calling score()')
         return self._score(dataset)
