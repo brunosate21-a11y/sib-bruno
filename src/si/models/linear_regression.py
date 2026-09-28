@@ -133,5 +133,50 @@ class RidgeRegression(Model):
             i += 1
 
         return self
-
     
+
+    def _predict(self, dataset: Dataset) -> np.ndarray:
+        """
+        Prevê a variável dependente (y) com os coeficientes estimados no _fit.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset para o qual queremos prever y.
+
+        Returns
+        -------
+        predictions: np.ndarray
+            Os valores previstos de y.
+        """
+        # normalizar com a média e o std guardados no _fit (NÃO recalcular com os dados novos):
+        # o modelo aprendeu os thetas numa escala concreta, por isso os dados novos
+        # têm de ser transformados exatamente da mesma forma
+        if self.scale:
+            X = (dataset.X - self.mean) / self.std
+        else:
+            X = dataset.X
+
+        # h(x) = theta_zero + theta_1 * x_1 + ... + theta_n * x_n
+        # np.dot faz esta soma para todas as amostras de uma vez
+        return np.dot(X, self.theta) + self.theta_zero
+
+    def _score(self, dataset: Dataset) -> float:
+        """
+        Calcula o erro (MSE) entre os valores reais e os previstos de y.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset com os valores reais de y.
+
+        Returns
+        -------
+        mse: float
+            O erro quadrático médio do modelo.
+        """
+        # 1. prever y com os thetas estimados
+        predictions = self.predict(dataset)
+
+        # 2. comparar com os valores reais através do MSE (quanto mais baixo, melhor)
+        return mse(dataset.y, predictions)
