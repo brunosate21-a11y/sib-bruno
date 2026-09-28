@@ -25,7 +25,7 @@ class Transformer(Estimator):
         dataset: Dataset
             The transformed dataset.
         """
-        if not self.is_fitted:
+        if not self.is_fitted():
             raise ValueError('Transformer needs to be fitted before calling transform()')
         return self._transform(dataset)
 
