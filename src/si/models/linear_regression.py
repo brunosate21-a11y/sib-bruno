@@ -180,3 +180,30 @@ class RidgeRegression(Model):
 
         # 2. comparar com os valores reais através do MSE (quanto mais baixo, melhor)
         return mse(dataset.y, predictions)
+
+    def cost(self, dataset: Dataset) -> float:
+        """
+        Calcula a função de custo J (erro + penalização L2) do modelo no dataset.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset onde calcular o custo.
+
+        Returns
+        -------
+        cost: float
+            O valor da função de custo.
+        """
+        # 1. prever y com os thetas atuais
+        # usa-se _predict (e não predict) porque o cost é chamado DENTRO do _fit,
+        # quando o modelo ainda não está marcado como treinado: o predict() lançaria
+        # o ValueError do is_fitted() a meio do treino
+        y_pred = self._predict(dataset)
+
+        # m = número de amostras
+        m = len(dataset.y)
+
+        # 2. J = (1 / 2m) * [soma dos erros ao quadrado + lambda * soma dos thetas ao quadrado]
+        # o theta_zero não entra na penalização (o somatório começa em j = 1)
+        return (np.sum((y_pred - dataset.y) ** 2) + self.l2_penalty * np.sum(self.theta ** 2)) / (2 * m)
