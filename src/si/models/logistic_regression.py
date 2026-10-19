@@ -59,3 +59,84 @@ class LogisticRegression(Model):
         self.mean = None
         self.std = None
         self.cost_history = {}
+
+    def _fit(self, dataset: Dataset) -> 'LogisticRegression':
+        """
+        Estima theta, theta_zero, mean, std e cost_history com gradient descent.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset de treino.
+
+        Returns
+        -------
+        self: LogisticRegression
+            O modelo treinado.
+        """
+        # normalizar os dados, se pedido: x' = (x - média) / desvio padrão
+        # a média e o std são calculados SÓ no treino e guardados no modelo,
+        # para que o _predict use exatamente os mesmos valores (evita data leakage)
+        if self.scale:
+            self.mean = np.nanmean(dataset.X, axis=0)
+            self.std = np.nanstd(dataset.X, axis=0)
+            # uma feature constante tem std = 0, o que daria divisão por zero (NaN)
+            self.std[self.std == 0] = 1
+            X = (dataset.X - self.mean) / self.std
+        else:
+            X = dataset.X
+        y = dataset.y
+
+        # m = número de amostras, n = número de features
+        m, n = X.shape
+
+        # iniciar os parâmetros a zero: com theta = 0, sigmoid(0) = 0.5 para todas as amostras,
+        # ou seja, o modelo começa "sem opinião" (50% de probabilidade para cada classe)
+        self.theta = np.zeros(n)
+        self.theta_zero = 0
+        self.cost_history = {}
+
+        i = 0
+        early_stopping = 0  # contador de iterações seguidas sem melhoria do custo
+
+        # repetir até atingir max_iter ou até o custo deixar de melhorar durante 'patience' iterações
+        while i < self.max_iter and early_stopping < self.patience:
+
+            # prever y com a sigmoide: ÚNICA diferença em relação à RidgeRegression
+            #    z = X · theta + theta_zero é a parte linear (igual à Ridge);
+            #    a sigmoide transforma z na probabilidade de cada amostra ser da classe 1
+            y_pred = sigmoid_function(np.dot(X, self.theta) + self.theta_zero)
+
+            # gradiente do erro, já multiplicado pela learning rate:
+            #    alpha * (1/m) * soma((y_pred - y) * x_j) -> a fórmula é IGUAL à da Ridge,
+            #    porque a derivada da sigmoide "cancela-se" com a derivada do log da função de custo
+            gradient = (self.alpha / m) * np.dot(y_pred - y, X)
+
+            # termo da regularização L2: "encolhe" cada theta um pouco em cada iteração
+            #    theta_j * (1 - alpha * lambda / m)
+            #    na regressão logística isto é essencial: se as classes forem separáveis,
+            #    sem L2 os thetas cresceriam sem limite (para empurrar as probabilidades para 0 e 1)
+            penalization_term = self.theta * (1 - self.alpha * (self.l2_penalty / m))
+
+            # atualizar theta: primeiro encolhe (L2), depois dá o passo do gradiente
+            self.theta = penalization_term - gradient
+
+            # atualizar theta_zero: não é penalizado (o intercept não deve ser encolhido);
+            #    como x0 = 1 para todas as amostras, o gradiente fica só a soma dos erros
+            self.theta_zero = self.theta_zero - (self.alpha / m) * np.sum(y_pred - y)
+
+            # calcular o custo (log-loss + L2) com os novos thetas e guardá-lo no histórico
+            self.cost_history[i] = self.cost(dataset)
+
+            # patience: se o custo não desceu em relação à iteração anterior, conta mais uma;
+            # se desceu, o contador volta a zero (só contam iterações SEGUIDAS sem melhoria)
+            if i > 0 and self.cost_history[i] >= self.cost_history[i - 1]:
+                early_stopping += 1
+            else:
+                early_stopping = 0
+
+            i += 1
+
+        return self
+
+       
