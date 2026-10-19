@@ -94,4 +94,57 @@ class RidgeRegressionLeastSquares(Model):
 
         return self
 
-    
+    def _predict(self, dataset: Dataset) -> np.ndarray:
+        """
+        Prevê a variável dependente (y) com os coeficientes estimados no _fit.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset para o qual queremos prever y.
+
+        Returns
+        -------
+        predictions: np.ndarray
+            Os valores previstos de y.
+        """
+        # normalizar com a média e o std GUARDADOS no _fit (não recalcular com os dados novos):
+        # o modelo aprendeu os thetas numa escala concreta, por isso os dados novos têm de ser
+        # transformados exatamente da mesma forma
+        if self.scale:
+            X = (dataset.X - self.mean) / self.std
+        else:
+            X = dataset.X
+
+        # acrescentar a coluna de uns, tal como no _fit:
+        # o X tem de ter a mesma estrutura (n + 1 colunas) que tinha quando os thetas foram calculados
+        X = np.c_[np.ones(X.shape[0]), X]
+
+        # juntar o theta_zero e o theta num único vetor [theta_zero, theta_1, ..., theta_n]
+        # np.r_ concatena por linhas (aqui, junta um número e um vetor num vetor só)
+        # a ordem tem de bater com as colunas de X: a primeira coluna (uns) vai com o theta_zero
+        thetas = np.r_[self.theta_zero, self.theta]
+
+        # previsão: y = X · thetas = theta_zero * 1 + theta_1 * x_1 + ... + theta_n * x_n
+        # (m, n + 1) x (n + 1,) = (m,) -> uma previsão por amostra
+        return X.dot(thetas)
+
+    def _score(self, dataset: Dataset) -> float:
+        """
+        Calcula o erro (MSE) entre os valores reais e os previstos de y.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset com os valores reais de y.
+
+        Returns
+        -------
+        mse: float
+            O erro quadrático médio do modelo.
+        """
+        # prever y com os thetas estimados
+        predictions = self.predict(dataset)
+
+        # comparar com os valores reais através do MSE (quanto mais baixo, melhor)
+        return mse(dataset.y, predictions)
