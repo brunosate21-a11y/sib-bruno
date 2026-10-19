@@ -167,3 +167,65 @@ class LogisticRegression(Model):
         # converter as probabilidades em classes: prob >= 0.5 -> 1, prob < 0.5 -> 0
         # o limiar 0.5 corresponde a z = 0, ou seja, à fronteira de decisão X · theta + theta_zero = 0
         return np.where(probabilities >= 0.5, 1, 0)
+
+
+    def _score(self, dataset: Dataset) -> float:
+        """
+        Calcula a accuracy entre os valores reais e os previstos de y.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset com os valores reais de y.
+
+        Returns
+        -------
+        accuracy: float
+            A proporção de amostras bem classificadas (entre 0 e 1).
+        """
+        # prever as classes com os thetas estimados
+        predictions = self.predict(dataset)
+
+        # comparar com as classes reais através da accuracy (quanto mais alta, melhor)
+        return accuracy(dataset.y, predictions)
+
+    def cost(self, dataset: Dataset) -> float:
+        """
+        Calcula a função de custo J (log-loss + penalização L2) do modelo no dataset.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset onde calcular o custo.
+
+        Returns
+        -------
+        cost: float
+            O valor da função de custo.
+        """
+        # normalizar com a média e o std guardados no _fit
+        if self.scale:
+            X = (dataset.X - self.mean) / self.std
+        else:
+            X = dataset.X
+        y = dataset.y
+
+        # prever as PROBABILIDADES com a sigmoide
+        # não se usa o _predict porque esse devolve classes (0 ou 1): com 0 e 1 exatos,
+        # log(0) daria -infinito; o custo precisa das probabilidades "contínuas"
+        predictions = sigmoid_function(np.dot(X, self.theta) + self.theta_zero)
+
+        # proteção numérica: se uma probabilidade chegar a 0 ou 1 exatos, log(0) = -inf;
+        # cortar os valores a [1e-15, 1 - 1e-15] não muda o resultado na prática
+        predictions = np.clip(predictions, 1e-15, 1 - 1e-15)
+
+        # m = número de amostras
+        m = len(y)
+
+        # J = -(1/m) * soma[ y*log(h) + (1-y)*log(1-h) ] + (lambda / 2m) * soma(theta_j^2)
+        # - se y = 1, só conta log(h): custo pequeno se h perto de 1, enorme se h perto de 0
+        # - se y = 0, só conta log(1-h): custo pequeno se h perto de 0, enorme se h perto de 1
+        # o theta_zero não entra na penalização (o somatório começa em j = 1)
+        log_loss = -np.sum(y * np.log(predictions) + (1 - y) * np.log(1 - predictions)) / m
+        penalization = (self.l2_penalty / (2 * m)) * np.sum(self.theta ** 2)
+        return log_loss + penalization 
