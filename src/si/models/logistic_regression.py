@@ -139,4 +139,31 @@ class LogisticRegression(Model):
 
         return self
 
-       
+    def _predict(self, dataset: Dataset) -> np.ndarray:
+        """
+        Prevê a classe (0 ou 1) de cada amostra com os coeficientes estimados no _fit.
+
+        Parameters
+        ----------
+        dataset: Dataset
+            O dataset para o qual queremos prever y.
+
+        Returns
+        -------
+        predictions: np.ndarray
+            As classes previstas (0 ou 1).
+        """
+        # normalizar com a média e o std guardados no _fit (NÃO recalcular com os dados novos):
+        # o modelo aprendeu os thetas numa escala concreta, por isso os dados novos
+        # têm de ser transformados exatamente da mesma forma
+        if self.scale:
+            X = (dataset.X - self.mean) / self.std
+        else:
+            X = dataset.X
+
+        # probabilidade de cada amostra ser da classe 1: sigmoid(X · theta + theta_zero)
+        probabilities = sigmoid_function(np.dot(X, self.theta) + self.theta_zero)
+
+        # converter as probabilidades em classes: prob >= 0.5 -> 1, prob < 0.5 -> 0
+        # o limiar 0.5 corresponde a z = 0, ou seja, à fronteira de decisão X · theta + theta_zero = 0
+        return np.where(probabilities >= 0.5, 1, 0)
