@@ -125,7 +125,7 @@ class DenseLayer(Layer):
         # pesos centrados em zero, assim os neurónios não começam todos enviesados no mesmo sentido
         self.weights = np.random.rand(n_features, self.n_units) - 0.5
 
-        # biases a zero: os pesos aleatórios são sufecientes para os neurónios aprenderem coisas diferentes
+        # biases a zero: os pesos aleatórios são suficientes para os neurónios aprenderem coisas diferentes
         self.biases = np.zeros((1, self.n_units))
 
         return self
