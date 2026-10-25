@@ -129,3 +129,47 @@ class DenseLayer(Layer):
         self.biases = np.zeros((1, self.n_units))
 
         return self
+
+
+
+    def parameters(self) -> int:
+        """
+        Devolve o número de parâmetros da camada (pesos + biases).
+
+        Returns
+        -------
+        int
+            n_features * n_units + n_units
+        """
+        # .size = número total de elementos de cada matriz
+        return int(self.weights.size + self.biases.size)
+
+    def forward_propagation(self, input: np.ndarray, training: bool = False) -> np.ndarray:
+        """
+        Calcula o output da camada: Y = X·W + B.
+
+        Parameters
+        ----------
+        input: np.ndarray
+            O input da camada, matriz (n_amostras, n_features).
+        training: bool
+            Não é usado na camada densa (comporta-se igual em treino e previsão).
+
+        Returns
+        -------
+        output: np.ndarray
+            O output da camada, matriz (n_amostras, n_units).
+        """
+        # guarda o input: o backward propagation vai precisar dele para calcular o gradiente dos pesos
+        self.input = input
+
+        # (n_amostras, n_features) · (n_features, n_units) -> (n_amostras, n_units)
+        # o bias (1, n_units) é somado a todas as linhas por broadcasting
+        self.output = np.dot(input, self.weights) + self.biases
+        return self.output
+
+    def output_shape(self) -> tuple:
+        """
+        Devolve a shape do output da camada: (n_units,).
+        """
+        return (self.n_units,)
