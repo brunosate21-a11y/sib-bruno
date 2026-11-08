@@ -143,4 +143,59 @@ class SigmoidActivation(ActivationLayer):
         # vai encolhendo de camada para camada (vanishing gradient)
         f = sigmoid_function(input)
         return f * (1 - f)
-    
+
+class TanhActivation(ActivationLayer):
+    """
+    Tangente hiperbólica: f(x) = (e^x - e^(-x)) / (e^x + e^(-x)).
+
+    Comprime qualquer valor para o intervalo ]-1, 1[. É parecida com a sigmoide,
+    mas centrada em zero (f(0) = 0), o que costuma ajudar o treino nas camadas escondidas.
+    """
+
+    def activation_function(self, input: np.ndarray) -> np.ndarray:
+        """
+        Aplica a tanh, elemento a elemento.
+        """
+        # np.tanh calcula exatamente a fórmula de cima, mas de forma estável:
+        # escrita à mão, np.exp(x) dava overflow (inf) para x muito grande
+        return np.tanh(input)
+
+    def derivative(self, input: np.ndarray) -> np.ndarray:
+        """
+        Derivada da tanh: f'(x) = 1 - f(x)^2.
+        """
+        # tal como na sigmoide, a derivada escreve-se à custa da própria função
+        # o valor máximo é 1 (em x = 0), maior do que o 0.25 da sigmoide
+        return 1 - np.tanh(input) ** 2
+
+
+class SoftmaxActivation(ActivationLayer):
+    """
+    Softmax: f(x_i) = e^(x_i) / soma_j e^(x_j).
+
+    Transforma os scores de cada amostra numa distribuição de probabilidades
+    (valores entre 0 e 1 que somam 1). Usa-se na camada de saída em classificação
+    multiclasse: cada output é a probabilidade de uma classe.
+    """
+
+    def activation_function(self, input: np.ndarray) -> np.ndarray:
+        """
+        Aplica a softmax a cada amostra (ao longo da última dimensão, a das classes).
+        """
+        # versão estável: subtrair o máximo de cada amostra não muda o resultado
+        # (e^(x - m) / soma e^(x - m) = e^x / soma e^x: o e^(-m) corta-se em cima e em baixo),
+        # mas evita exponenciais enormes: o maior expoente passa a ser 0 (e^0 = 1)
+        # axis=-1: a última dimensão (as classes); keepdims=True mantém a shape (n_amostras, 1)
+        # para o broadcasting funcionar na subtração e na divisão
+        exps = np.exp(input - np.max(input, axis=-1, keepdims=True))
+        return exps / np.sum(exps, axis=-1, keepdims=True)
+
+    def derivative(self, input: np.ndarray) -> np.ndarray:
+        """
+        Derivada da softmax, como no enunciado: f'(x_i) = f(x_i) * (1 - f(x_i)).
+        """
+        # é a derivada de cada output em relação ao seu próprio input (a diagonal do jacobiano);
+        # na softmax, mexer num x_i muda todos os outputs (porque têm de somar 1), por isso a
+        # derivada completa também tem termos cruzados (-f_i * f_j); aqui segue-se o enunciado
+        f = self.activation_function(input)
+        return f * (1 - f)
