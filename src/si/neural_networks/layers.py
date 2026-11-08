@@ -14,10 +14,6 @@ class Layer(metaclass=ABCMeta):
     Por ser abstrata, não se pode fazer Layer() diretamente: dá TypeError.
     """
 
-    # nota: o backward_propagation também vai ser abstrato, mas só é adicionado
-    # quando a DenseLayer o implementar; se fosse abstrato já, a DenseLayer
-    # não podia ser instanciada (faltava-lhe esse método)
-
     @abstractmethod
     def forward_propagation(self, input, training):
         """
@@ -35,6 +31,25 @@ class Layer(metaclass=ABCMeta):
         -------
         output: np.ndarray
             O output da camada.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def backward_propagation(self, output_error):
+        """
+        Recebe o erro do output da camada (dE/dY), atualiza os parâmetros
+        (se a camada os tiver) e devolve o erro do input (dE/dX),
+        que passa a ser o dE/dY da camada anterior.
+
+        Parameters
+        ----------
+        output_error: np.ndarray
+            O gradiente do erro em relação ao output da camada (dE/dY).
+
+        Returns
+        -------
+        input_error: np.ndarray
+            O gradiente do erro em relação ao input da camada (dE/dX).
         """
         raise NotImplementedError
 
@@ -188,6 +203,47 @@ class DenseLayer(Layer):
         # o bias (1, n_units) é somado a todas as linhas por broadcasting
         self.output = np.dot(input, self.weights) + self.biases
         return self.output
+
+
+    def backward_propagation(self, output_error: np.ndarray) -> np.ndarray:
+
+        """
+        Calcula os gradientes da camada, atualiza os pesos e os biases
+        e devolve o erro do input para a camada anterior.
+
+        Parameters
+        ----------
+        output_error: np.ndarray
+            dE/dY, matriz (n_amostras, n_units), vinda da camada seguinte.
+
+        Returns
+        -------
+        input_error: np.ndarray
+            dE/dX, matriz (n_amostras, n_features); vai ser o dE/dY da camada anterior.
+            
+        """
+        # 1. dE/dX = dE/dY · Wᵀ  -->  (n_amostras, n_units) · (n_units, n_features) = (n_amostras, n_features)
+        # tem de ser calculado ANTES de atualizar os pesos: senão usava os pesos novos
+        # e o resultado ficava errado sem dar nenhuma mensagem de erro
+        input_error = np.dot(output_error, self.weights.T)
+
+        # 2. dE/dW = Xᵀ · dE/dY  -->  (n_features, n_amostras) · (n_amostras, n_units) = (n_features, n_units)
+        # o produto de matrizes já soma as contribuições de todas as amostras do batch
+        weights_error = np.dot(self.input.T, output_error)
+
+        # 3. dE/dB = soma de dE/dY ao longo das amostras  ->  (1, n_units)
+        # o mesmo bias é somado a todas as amostras (broadcasting), por isso o gradiente junta-as todas
+        # keepdims=True mantém a shape (1, n_units), igual à de self.biases
+        bias_error = np.sum(output_error, axis=0, keepdims=True)
+
+        # 4. atualizar os parâmetros com o optimizer (SGD, Adam, ... na próxima aula)
+        self.weights = self.w_opt.update(self.weights, weights_error)
+        self.biases = self.b_opt.update(self.biases, bias_error)
+
+        # 5. devolver dE/dX para a camada anterior continuar o backward
+        return input_error
+
+    
 
     def output_shape(self) -> tuple:
         """
