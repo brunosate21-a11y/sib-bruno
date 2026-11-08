@@ -250,3 +250,109 @@ class DenseLayer(Layer):
         Devolve a shape do output da camada: (n_units,).
         """
         return (self.n_units,)
+
+
+class Dropout(Layer):
+    """
+    Camada de dropout: em treino, desliga ao acaso uma fração dos neurónios
+    (põe o seu valor a 0) em cada passagem.
+
+    É uma técnica de regularização: como a rede não pode contar sempre com os mesmos
+    neurónios, é obrigada a espalhar o que aprende por vários, o que reduz o overfitting.
+    Em previsão (inferência) não desliga nada.
+
+    Parameters
+    ----------
+    probability: float
+        A taxa de dropout: a probabilidade de cada neurónio ser desligado, em [0, 1[.
+
+    Attributes
+    ----------
+    mask: np.ndarray
+        A máscara binomial do último forward em treino: 1 = neurónio mantido, 0 = desligado.
+    input: np.ndarray
+        O último input recebido.
+    output: np.ndarray
+        O último output calculado.
+    """
+
+    def __init__(self, probability: float):
+        # com probability = 1 desligava tudo, e o fator de escala 1 / (1 - p) dividia por zero
+        if not 0 <= probability < 1:
+            raise ValueError("A probability tem de estar entre 0 (inclusive) e 1 (exclusive).")
+
+        # parâmetro: definido pelo utilizador ao criar a camada
+        self.probability = probability
+
+        # atributos estimados: preenchidos no forward
+        self.mask = None
+        self.input = None
+        self.output = None
+
+    def forward_propagation(self, input: np.ndarray, training: bool = False) -> np.ndarray:
+        """
+        Em treino, desliga neurónios ao acaso e reescala os restantes.
+        Em previsão, devolve o input sem alterações.
+
+        Parameters
+        ----------
+        input: np.ndarray
+            O input da camada.
+        training: bool
+            Se a rede está em treino (aplica o dropout) ou em previsão (não aplica).
+
+        Returns
+        -------
+        output: np.ndarray
+            O output da camada, com a mesma shape do input.
+        """
+        self.input = input
+
+        if training:
+            # fator de escala: com p = 0.5, metade dos neurónios é desligada e os que ficam
+            # são multiplicados por 2; assim o valor médio do output é igual ao do input,
+            # e a camada seguinte recebe valores da mesma ordem em treino e em previsão
+            scaling_factor = 1 / (1 - self.probability)
+
+            # máscara binomial: cada posição é 1 com probabilidade (1 - p) e 0 com probabilidade p
+            # (size=input.shape: um sorteio para cada valor do input)
+            self.mask = np.random.binomial(1, 1 - self.probability, size=input.shape)
+
+            self.output = input * self.mask * scaling_factor
+            return self.output
+
+        # em previsão usam-se todos os neurónios: o input passa sem alterações
+        self.output = input
+        return self.output
+
+    def backward_propagation(self, output_error: np.ndarray) -> np.ndarray:
+        """
+        Multiplica o erro pela máscara: os neurónios desligados no forward não recebem erro.
+
+        Parameters
+        ----------
+        output_error: np.ndarray
+            dE/dY, o erro em relação ao output desta camada.
+
+        Returns
+        -------
+        input_error: np.ndarray
+            O erro em relação ao input (para a camada anterior).
+        """
+        # um neurónio desligado (máscara 0) não contribuiu para o output, por isso não tem
+        # culpa no erro e o seu gradiente fica a 0; não há pesos para atualizar
+        # nota: a derivada exata também levava o fator de escala (output = input * mask * escala);
+        # aqui segue-se o enunciado, que pede só a multiplicação pela máscara
+        return output_error * self.mask
+
+    def output_shape(self) -> tuple:
+        """
+        Devolve a shape do output: igual à do input (o dropout não muda a shape).
+        """
+        return self.input_shape()
+
+    def parameters(self) -> int:
+        """
+        Devolve 0: o dropout não tem parâmetros treináveis.
+        """
+        return 0
