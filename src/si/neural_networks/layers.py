@@ -1,3 +1,4 @@
+import copy
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
@@ -94,6 +95,10 @@ class DenseLayer(Layer):
         Linha i = pesos que saem da feature i; coluna j = pesos que entram no neurónio j.
     biases: np.ndarray
         Os biases da camada, matriz (1, n_units): um bias por neurónio.
+            w_opt: Optimizer
+                O optimizer que atualiza os pesos no backward propagation.
+            b_opt: Optimizer
+                O optimizer que atualiza os biases no backward propagation. 
     """
 
     def __init__(self, n_units: int, input_shape: tuple = None):
@@ -106,27 +111,43 @@ class DenseLayer(Layer):
         self.output = None
         self.weights = None
         self.biases = None
+        self.w_opt = None  # optimizer dos pesos (criado no initialize)
+        self.b_opt = None  # optimizer dos biases (criado no initialize)
 
-    def initialize(self) -> 'DenseLayer':
+    def initialize(self, optimizer=None) -> 'DenseLayer':
         """
-        Inicializa os pesos com valores aleatórios em [-0.5, 0.5[ e os biases a zero.
+        Inicializa os pesos com valores aleatórios em [-0.5, 0.5[, os biases a zero
+        e guarda uma cópia do optimizer para os pesos e outra para os biases.
+
+        Parameters
+        ----------
+        optimizer: Optimizer
+            O optimizer que vai atualizar os pesos e os biases no backward propagation.
+            É opcional (None) para a camada continuar a funcionar só com o forward,
+            como nos testes da Aula 4, antes de existirem optimizers.
 
         Returns
         -------
         self: DenseLayer
-            A própria camada (permite fazer DenseLayer(...).initialize()).
+            A própria camada (permite fazer DenseLayer(...).initialize(optimizer)).
         """
         if self._input_shape is None:
             raise ValueError("A camada precisa do input_shape antes de ser inicializada.")
 
         n_features = self.input_shape()[0]
 
-        # np.random.rand dá valores em [0, 1[; subtrair 0.5 centra-os em zero -> [-0.5, 0.5[
-        # pesos centrados em zero, assim os neurónios não começam todos enviesados no mesmo sentido
+        # np.random.rand dá valores em [0, 1[; subtrair 0.5 centra-os em zero --> [-0.5, 0.5[
+        # pesos centrados em zero, assim os neurónios não começam todos cruzados no mesmo sentido
         self.weights = np.random.rand(n_features, self.n_units) - 0.5
 
         # biases a zero: os pesos aleatórios são suficientes para os neurónios aprenderem coisas diferentes
         self.biases = np.zeros((1, self.n_units))
+
+        # uma cópia independente do optimizer para os pesos e outra para os biases:
+        # optimizers como o SGD com momentum ou o Adam guardam estado interno com a shape
+        # dos parâmetros, por isso pesos e biases não podem partilhar o mesmo objeto
+        self.w_opt = copy.deepcopy(optimizer)
+        self.b_opt = copy.deepcopy(optimizer)
 
         return self
 
