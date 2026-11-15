@@ -111,3 +111,35 @@ class BinaryCrossEntropy(LossFunction):
         # derivada de log(p) = 1/p; derivada de log(1 - p) = -1/(1 - p) (o -1 vem da regra da cadeia)
         # com o sinal - da frente da loss: -y/p + (1 - y)/(1 - p)
         return -y_true / p + (1 - y_true) / (1 - p)
+
+
+class CategoricalCrossEntropy(LossFunction):
+    """
+    Entropia cruzada categórica: L = -soma(y * log(p)).
+
+    Usa-se em classificação multiclasse, com uma softmax na última camada:
+    y_true está em one-hot (uma coluna por classe, 1 na classe certa e 0 nas outras)
+    e y_pred (p) tem a probabilidade prevista de cada classe.
+    """
+
+    def loss(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
+        """
+        Calcula a entropia cruzada categórica (soma, como na fórmula do slide).
+        """
+        # np.clip afasta p de 0 e de 1: log(0) = -inf
+        p = np.clip(y_pred, 1e-15, 1 - 1e-15)
+
+        # com y em one-hot, em cada amostra só conta a coluna da classe certa (as outras têm y = 0):
+        # a loss de cada amostra é -log(probabilidade dada à classe certa)
+        return -np.sum(y_true * np.log(p))
+
+    def derivative(self, y_true: np.ndarray, y_pred: np.ndarray) -> np.ndarray:
+        """
+        Derivada da entropia cruzada categórica em relação às previsões: -y/p.
+        """
+        # o mesmo clip: aqui evita dividir por 0 quando p = 0
+        p = np.clip(y_pred, 1e-15, 1 - 1e-15)
+
+        # derivada de log(p) = 1/p; com o sinal - da frente da loss: -y/p
+        # nas colunas das classes erradas (y = 0) a derivada é 0
+        return -y_true / p
